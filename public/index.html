@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <meta name="description" content="Create APA 7 references from webpages, journal articles, PDFs, and documents.">
+  <title>CiteRight — APA 7 Citation Generator</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="CiteRight home">
+      <span class="brand-mark">CR</span>
+      <span class="brand-copy"><strong>CiteRight</strong><small>APA 7 citation studio</small></span>
+    </a>
+    <div class="top-actions">
+      <span id="connectionDot" class="connection-dot" title="API connection status"></span>
+      <span id="connectionLabel" class="connection-label">Checking connection</span>
+      <button class="button button-soft" id="settingsButton" type="button"><span class="button-icon">⚙</span> Settings</button>
+    </div>
+  </header>
+
+  <main id="top" class="app-shell">
+    <section class="hero">
+      <div class="eyebrow"><span class="eyebrow-line"></span> RESEARCH, ORGANIZED</div>
+      <h1>Good sources deserve<br><span>good citations.</span></h1>
+      <p>Collect source details, build an APA 7 reference, and keep your bibliography together—all in one place.</p>
+      <div class="hero-tags"><span>APA 7</span><span>Web pages</span><span>PDFs & documents</span><span>Editable results</span></div>
+    </section>
+
+    <div class="workspace">
+      <section class="panel source-panel" aria-labelledby="sourceHeading">
+        <div class="panel-heading">
+          <div><span class="step-label">STEP 01</span><h2 id="sourceHeading">Bring in a source</h2></div>
+          <span class="heading-icon">↗</span>
+        </div>
+        <p class="muted intro-copy">Start with a link, a document, or a DOI. You can edit every field after the scan.</p>
+
+        <div class="input-tabs" role="tablist" aria-label="Source input method">
+          <button class="input-tab is-active" type="button" role="tab" aria-selected="true" data-tab="website">Website / link</button>
+          <button class="input-tab" type="button" role="tab" aria-selected="false" data-tab="upload">Upload file</button>
+          <button class="input-tab" type="button" role="tab" aria-selected="false" data-tab="search">DOI / search</button>
+        </div>
+
+        <div class="tab-panel is-active" data-panel="website">
+          <label for="urlInput">Website or hosted document URL</label>
+          <div class="input-action-row"><input id="urlInput" type="url" placeholder="https://example.com/article" autocomplete="url"><button class="button button-primary" id="scanButton" type="button">Scan source <span aria-hidden="true">→</span></button></div>
+          <p class="field-help">Works best with public pages and direct PDF/DOCX links. Login-only pages may not be accessible.</p>
+        </div>
+
+        <div class="tab-panel" data-panel="upload" hidden>
+          <label for="fileInput">Upload a document</label>
+          <label class="dropzone" for="fileInput" id="dropzone">
+            <span class="upload-symbol">↑</span>
+            <strong>Drop a file here or <u>browse files</u></strong>
+            <span>PDF, DOCX, TXT, or RTF · up to 15 MB</span>
+            <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.rtf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/rtf">
+          </label>
+          <p class="field-help">Your uploaded file is processed in memory and is not saved by the server. Scanned PDFs may need manual details.</p>
+          <div id="selectedFile" class="selected-file" hidden></div>
+          <button class="button button-primary full-width" id="uploadButton" type="button" disabled>Extract document details <span aria-hidden="true">→</span></button>
+        </div>
+
+        <div class="tab-panel" data-panel="search" hidden>
+          <label for="doiInput">Look up a DOI</label>
+          <div class="input-action-row"><input id="doiInput" type="text" placeholder="10.1038/s41586-020-2649-2"><button class="button button-primary" id="doiButton" type="button">Find DOI</button></div>
+          <div class="field-divider"><span>or search academic records</span></div>
+          <label for="searchInput">Title, author, or keywords</label>
+          <div class="input-action-row"><input id="searchInput" type="search" placeholder="e.g., academic stress in teenagers"><button class="button button-secondary" id="searchButton" type="button">Search</button></div>
+          <p class="field-help">Academic lookup uses Crossref. It will not find every book, website, or article.</p>
+          <div id="searchResults" class="search-results" aria-live="polite"></div>
+        </div>
+
+        <div id="statusMessage" class="status-message" role="status" aria-live="polite" hidden></div>
+
+        <div class="source-notes">
+          <div class="note-mark">i</div>
+          <p><strong>What happens during a scan?</strong><br>The backend reads public page metadata or extracts document text. It does not bypass passwords, paywalls, or site access controls.</p>
+        </div>
+      </section>
+
+      <section class="panel editor-panel" aria-labelledby="editorHeading">
+        <div class="panel-heading">
+          <div><span class="step-label">STEP 02</span><h2 id="editorHeading">Review the details</h2></div>
+          <span class="draft-pill" id="draftPill">New citation</span>
+        </div>
+        <p class="muted intro-copy">Metadata can be incomplete or incorrectly labeled. Confirm it against the original source.</p>
+
+        <form id="metadataForm" autocomplete="off">
+          <div class="form-grid">
+            <div class="field full-span"><label for="titleField">Title <span class="required-star">*</span></label><input id="titleField" name="title" type="text" required placeholder="Title of the page, article, or document"></div>
+            <div class="field full-span"><label for="authorsField">Author(s)</label><textarea id="authorsField" name="authors" rows="2" placeholder="One author per line; personal names may be entered as Family, Given"></textarea><div class="inline-check"><input id="groupAuthor" type="checkbox"><label for="groupAuthor">These are organization/group authors</label></div></div>
+            <div class="field"><label for="sourceTypeField">Source type</label><select id="sourceTypeField" name="sourceType"><option value="website">Web page</option><option value="journal">Journal article</option><option value="book">Book</option><option value="report">Report / document</option><option value="video">Online video</option></select></div>
+            <div class="field"><label for="dateField">Publication date</label><input id="dateField" name="yearDate" type="text" placeholder="2024 or 2024-10-26"><span class="field-help">Use the date shown by the source.</span></div>
+            <div class="field"><label for="siteNameField">Website / platform</label><input id="siteNameField" name="siteName" type="text" placeholder="Website or platform name"></div>
+            <div class="field"><label for="publisherField">Publisher</label><input id="publisherField" name="publisher" type="text" placeholder="Publisher or organization"></div>
+            <div class="field full-span"><label for="urlField">URL</label><input id="urlField" name="url" type="url" placeholder="https://..."></div>
+            <div class="field full-span"><label for="doiField">DOI (if available)</label><input id="doiField" name="doi" type="text" placeholder="10.xxxx/xxxxx or https://doi.org/..."></div>
+            <div class="field full-span type-fields" data-type-fields="journal" hidden>
+              <div class="form-grid nested-grid">
+                <div class="field full-span"><label for="journalField">Journal name</label><input id="journalField" name="journal" type="text" placeholder="Name of the academic journal"></div>
+                <div class="field"><label for="volumeField">Volume</label><input id="volumeField" name="volume" type="text" placeholder="12"></div>
+                <div class="field"><label for="issueField">Issue</label><input id="issueField" name="issue" type="text" placeholder="3"></div>
+                <div class="field full-span"><label for="pagesField">Page range / article number</label><input id="pagesField" name="pages" type="text" placeholder="100–118 or e12345"></div>
+              </div>
+            </div>
+            <div class="field full-span type-fields" data-type-fields="book" hidden><label for="editionField">Edition (optional)</label><input id="editionField" name="edition" type="text" placeholder="2nd ed."></div>
+            <div class="field full-span"><div class="inline-check"><input id="sentenceCase" type="checkbox" checked><label for="sentenceCase">Apply APA sentence case to the title <span class="subtle-note">(review proper nouns and acronyms)</span></label></div></div>
+          </div>
+        </form>
+        <details id="documentPreview" class="document-preview" hidden><summary>Extracted document text preview</summary><pre id="documentTextPreview"></pre></details>
+        <div class="editor-actions"><button class="button button-secondary" id="clearButton" type="button">Clear fields</button><button class="button button-primary" id="saveButton" type="button">Add to bibliography <span aria-hidden="true">＋</span></button></div>
+      </section>
+
+      <section class="panel preview-panel" aria-labelledby="previewHeading">
+        <div class="panel-heading">
+          <div><span class="step-label">STEP 03</span><h2 id="previewHeading">Your APA 7 citation</h2></div>
+          <span class="format-stamp">APA 7TH</span>
+        </div>
+        <div class="citation-preview-wrap">
+          <div class="preview-label-row"><span>REFERENCE LIST ENTRY</span><button id="copyReferenceButton" class="text-button" type="button">Copy reference ↗</button></div>
+          <div id="referencePreview" class="reference-preview" aria-live="polite">Your formatted reference will appear here as you fill in the source details.</div>
+          <div class="preview-divider"></div>
+          <div class="preview-label-row"><span>IN-TEXT CITATION</span><button id="copyInTextButton" class="text-button" type="button">Copy in-text ↗</button></div>
+          <div id="inTextPreview" class="in-text-preview">(Author, Year)</div>
+          <p class="preview-footnote">APA formatting is automated, but source details and special cases should be checked against your instructor’s APA 7 requirements.</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel bibliography-panel" aria-labelledby="bibliographyHeading">
+      <div class="bibliography-heading-row">
+        <div class="panel-heading bibliography-title-block"><div><span class="step-label">YOUR WORKSPACE</span><h2 id="bibliographyHeading">Bibliography</h2></div><span id="sourceCount" class="count-pill">0 sources</span></div>
+        <div class="bibliography-actions"><input id="bibliographySearch" type="search" placeholder="Filter bibliography…" aria-label="Filter bibliography"><button id="exportTxtButton" class="button button-soft" type="button" disabled>Export .txt</button><button id="exportHtmlButton" class="button button-soft" type="button" disabled>Export formatted .html</button><button id="clearBibliographyButton" class="button button-danger-soft" type="button" disabled>Clear all</button></div>
+      </div>
+      <div id="bibliographyList" class="bibliography-list"><div class="empty-state"><span class="empty-state-icon">↳</span><strong>Your sources will collect here.</strong><p>Add the reviewed citation above. The list stays in this browser on this device.</p></div></div>
+      <div class="bibliography-footer"><span><span class="footer-dot"></span> Saved locally in this browser</span><span>Alphabetize your final reference list before submitting.</span></div>
+    </section>
+
+    <footer class="app-footer"><span>© CiteRight · APA 7</span><span>Built for careful research, not guesswork.</span></footer>
+  </main>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <form method="dialog" class="dialog-header"><div><span class="step-label">CONNECTION</span><h2>Backend settings</h2></div><button class="icon-close" aria-label="Close settings">×</button></form>
+    <div class="dialog-body">
+      <p class="muted">Normally, the frontend and backend are hosted together. If this page is on a separate static host, enter the base URL of the deployed API server here—not a path ending in <code>/api</code>.</p>
+      <label for="apiBaseInput">Backend base URL</label><input id="apiBaseInput" type="url" placeholder="https://your-citeright-service.onrender.com">
+      <div class="dialog-buttons"><button class="button button-soft" id="resetApiButton" type="button">Use this website</button><button class="button button-primary" id="testApiButton" type="button">Test connection</button><button class="button button-secondary" id="saveApiButton" type="button">Save</button></div>
+      <div id="apiStatus" class="status-message" role="status" hidden></div>
+      <div class="settings-note"><strong>Origin rules:</strong> when frontend and backend are separate, add the frontend’s exact HTTPS origin to <code>FRONTEND_ORIGINS</code> on the backend (comma-separated). CORS headers alone cannot make a password-protected or blocked source readable.</div>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
