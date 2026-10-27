@@ -10,7 +10,7 @@ import ipaddr from 'ipaddr.js';
 import dns from 'node:dns/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Agent } from 'undici';
+import { Agent, fetch } from 'undici';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -133,6 +133,44 @@ function makePinnedAgent(hostname, addresses) {
   } });
 }
 
+function describeNetworkError(error) {
+  const parts = [];
+  const seen = new Set();
+  let current = error;
+  for (let depth = 0; current && depth < 6; depth++, current = current.cause) {
+    const code = typeof current.code === 'string' ? current.code : '';
+    const message = typeof current.message === 'string' ? current.message.trim() : '';
+    const part = [code, message].filter(Boolean).join(': ');
+    if (part && !seen.has(part)) { seen.add(part); parts.push(part); }
+    if (Array.isArray(current.errors)) {
+      for (const nested of current.errors.slice(0, 3)) {
+        const nestedCode = typeof nested?.code === 'string' ? nested.code : '';
+        const nestedMessage = typeof nested?.message === 'string' ? nested.message.trim() : '';
+        const nestedPart = [nestedCode, nestedMessage].filter(Boolean).join(': ');
+        if (nestedPart && !seen.has(nestedPart)) { seen.add(nestedPart); parts.push(nestedPart); }
+      }
+    }
+  }
+
+  const codes = parts.join(' ');
+  if (/ENOTFOUND|EAI_AGAIN|EAI_NONAME/.test(codes)) {
+    return 'DNS lookup failed. Check the hostname or the server’s outbound DNS access.';
+  }
+  if (/CERT_|SELF_SIGNED|UNABLE_TO_VERIFY_LEAF_SIGNATURE|ERR_TLS/.test(codes)) {
+    return 'The website’s TLS certificate could not be verified. Try the canonical HTTPS URL.';
+  }
+  if (/ECONNREFUSED/.test(codes)) {
+    return 'The website refused the connection. It may block server-side requests.';
+  }
+  if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|ESOCKETTIMEDOUT/.test(codes)) {
+    return 'The connection timed out before the website responded.';
+  }
+  if (/ECONNRESET|UND_ERR_SOCKET/.test(codes)) {
+    return 'The website or network closed the connection before a response arrived.';
+  }
+  return parts.length ? parts.join(' → ') : 'No additional network error details were provided by the runtime.';
+}
+
 async function safeFetch(startUrl) {
   let current;
   try { current = new URL(startUrl); } catch { throw new Error('Enter a complete URL, such as https://example.com/article.'); }
@@ -156,8 +194,10 @@ async function safeFetch(startUrl) {
       });
     } catch (error) {
       await dispatcher.close().catch(() => {});
-      if (error?.name === 'TimeoutError') throw new Error('The website took too long to respond. Try another link or enter metadata manually.');
-      throw new Error(`Could not reach that website: ${error.message || 'connection failed'}`);
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+        throw new Error('The website took too long to respond. Try another link or enter metadata manually.');
+      }
+      throw new Error(`Could not reach that website. ${describeNetworkError(error)}`);
     }
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get('location');
