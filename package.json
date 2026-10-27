@@ -1,0 +1,20 @@
+{
+  "name": "citeright-apa7",
+  "version": "1.0.0",
+  "private": true,
+  "description": "APA 7 citation generator with web and document metadata extraction",
+  "type": "module",
+  "engines": { "node": ">=22.3.0" },
+  "scripts": { "start": "node server.js", "check": "node --check server.js && node --check public/app.js" },
+  "dependencies": {
+    "cheerio": "1.1.2",
+    "express": "5.1.0",
+    "express-rate-limit": "8.1.0",
+    "helmet": "8.1.0",
+    "ipaddr.js": "2.2.0",
+    "mammoth": "1.10.0",
+    "multer": "2.0.2",
+    "pdf-parse": "2.4.5",
+    "undici": "6.21.3"
+  }
+}
