@@ -314,15 +314,93 @@ function looksLikeGroupAuthor(author) {
   });
 }
 
+function cleanAuthorCandidate(value) {
+  let candidate = cleanText(value, 240)
+    .replace(/^(?:(?:written|reported|created|reviewed|edited)\s+)?by\s*:?\s*/i, '')
+    .replace(/^author\s*:\s*/i, '')
+    .replace(/\s*[|·•]\s*(?:published|updated|posted|read time|\d+\s+min(?:ute)?s?\s+read).*$/i, '')
+    .replace(/\s+\(?(?:published|updated|posted)\s+(?:on\s+)?\w{3,9}\s+\d{1,2},?\s+\d{4}\)?\s*$/i, '')
+    .trim();
+  if (!candidate || candidate.length < 2 || candidate.length > 180) return '';
+  if (/^(?:https?:\/\/|www\.|@)[^\s]*$/i.test(candidate)) return '';
+  if (/^(?:anonymous|staff|editorial staff|admin|administrator|unknown author|no author|read more|related articles)$/i.test(candidate)) return '';
+  if (/\b(?:subscribe|sign in|log in|follow us|share this|all rights reserved|privacy policy|cookie policy)\b/i.test(candidate)) return '';
+  return candidate;
+}
+function uniqueAuthorNames(values) {
+  const seen = new Set();
+  return values.map(cleanAuthorCandidate).filter(value => {
+    if (!value) return false;
+    const key = value.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 50);
+}
+function metaAuthors($, selectors) {
+  for (const selector of selectors) {
+    const values = [];
+    $(selector).each((_index, element) => {
+      const value = $(element).attr('content') || $(element).attr('value') || '';
+      if (value.trim()) values.push(value.trim());
+    });
+    const cleaned = uniqueAuthorNames(values);
+    if (cleaned.length) return cleaned;
+  }
+  return [];
+}
+function splitVisibleByline(value) {
+  const cleaned = cleanAuthorCandidate(value);
+  if (!cleaned || looksLikeGroupAuthor([cleaned])) return cleaned ? [cleaned] : [];
+  const parts = cleaned.split(/\s+(?:and|&)\s+/i).map(cleanAuthorCandidate).filter(Boolean);
+  return parts.length > 1 && parts.length <= 8 ? parts : [cleaned];
+}
+function elementAuthors($, selector) {
+  const values = [];
+  $(selector).each((_index, element) => {
+    const node = $(element);
+    const value = node.attr('content') || node.attr('aria-label') ||
+      node.find('[itemprop="name"]').first().text() ||
+      node.find('meta[itemprop="name"]').first().attr('content') ||
+      node.text();
+    const cleaned = cleanAuthorCandidate(value);
+    if (cleaned) values.push(cleaned);
+    if (values.length >= 50) return false;
+  });
+  return uniqueAuthorNames(values);
+}
+function discoverHtmlAuthors($, articleLd) {
+  // Citation metadata used by scholarly publishers is usually the most direct source.
+  const citation = metaAuthors($, ['meta[name="citation_author"]']);
+  if (citation.length) return { authors: citation, groupAuthor: looksLikeGroupAuthor(citation), source: 'citation metadata' };
+
+  // Schema.org JSON-LD preserves whether the author is a person or organization.
+  const structured = jsonAuthorList(articleLd.author);
+  if (structured.length) return { authors: uniqueAuthorNames(structured), groupAuthor: looksLikeGroupAuthor(articleLd.author) || looksLikeGroupAuthor(structured), source: 'structured page data' };
+
+  const meta = metaAuthors($, [
+    'meta[name="parsely-author"]', 'meta[name="author"]', 'meta[name="author_name"]',
+    'meta[name="dc.creator"]', 'meta[name="DC.Creator"]', 'meta[name="dcterms.creator"]',
+    'meta[property="article:author"]', 'meta[property="og:article:author"]', 'meta[name="byl"]'
+  ]);
+  if (meta.length) return { authors: meta, groupAuthor: looksLikeGroupAuthor(meta), source: 'author metadata' };
+
+  const schema = elementAuthors($, '[itemprop="author"]');
+  if (schema.length) return { authors: schema, groupAuthor: looksLikeGroupAuthor(schema), source: 'author markup' };
+
+  // Last-resort visible bylines; these are deliberately only used when stronger metadata is absent.
+  const byline = elementAuthors($, 'a[rel~="author"], .byline, .by-line, .author-name, .article-author, [class*="byline"], [data-testid*="author"]').flatMap(splitVisibleByline);
+  if (byline.length) return { authors: uniqueAuthorNames(byline), groupAuthor: looksLikeGroupAuthor(byline), source: 'visible byline' };
+  return { authors: [], groupAuthor: false, source: '' };
+}
+
 function parseHtml(buffer, url) {
   const html = buffer.toString('utf8');
   const $ = cheerio.load(html);
   const ld = parseJsonLd($);
-  const articleLd = ld.find(item => /Article|Report|ScholarlyArticle|WebPage|NewsArticle|BlogPosting/i.test(String(item['@type'] || '')) && (item.headline || item.name || item.author)) || ld[0] || {};
-  const citationAuthors = [];
-  $('meta[name="citation_author"], meta[name="DC.Creator"], meta[name="dc.creator"], meta[name="author"]')
-    .each((_i, el) => { const v = $(el).attr('content'); if (v?.trim()) citationAuthors.push(v.trim()); });
-  const authors = citationAuthors.length ? citationAuthors : jsonAuthorList(articleLd.author);
+  const articleLd = ld.find(item => /ScholarlyArticle|NewsArticle|BlogPosting|Article|Report/i.test(String(item['@type'] || '')) && (item.headline || item.name || item.author)) || ld.find(item => /WebPage/i.test(String(item['@type'] || '')) && (item.name || item.author)) || ld[0] || {};
+  const authorInfo = discoverHtmlAuthors($, articleLd);
+  const authors = authorInfo.authors;
   const title = firstNonEmpty(
     metaContent($, ['meta[name="citation_title"]','meta[name="DC.title"]','meta[name="dc.title"]','meta[property="og:title"]','meta[name="twitter:title"]']),
     articleLd.headline, articleLd.name, $('h1').first().text(), $('title').first().text()
@@ -350,14 +428,18 @@ function parseHtml(buffer, url) {
   const publisher = firstNonEmpty(metaContent($, ['meta[name="citation_publisher"]','meta[name="publisher"]','meta[name="DC.publisher"]','meta[name="dc.publisher"]']), articleLd.publisher?.name);
   const description = firstNonEmpty(metaContent($, ['meta[name="description"]','meta[property="og:description"]']), articleLd.description);
   const isJournal = Boolean(publicationTitle || $('meta[name="citation_journal_title"]').length);
-  const sourceType = isJournal ? 'journal' : (articleLd['@type'] === 'Report' ? 'report' : 'website');
+  const sourceType = isJournal ? 'journal' : (/Report/i.test(String(articleLd['@type'] || '')) ? 'report' : 'website');
+  const warnings = [];
+  if (!authors.length) warnings.push('No author could be confidently detected in the page metadata or visible byline. Check the byline or organization name manually.');
+  else if (authors.length && authorInfo.source === 'visible byline') warnings.push('Author was estimated from the visible byline. Verify the spelling and author order against the page.');
   return {
     sourceType, title: cleanText(title), authors: authors.map(value => cleanText(value)).filter(Boolean),
-    groupAuthor: citationAuthors.length ? looksLikeGroupAuthor(citationAuthors) : looksLikeGroupAuthor(articleLd.author),
+    groupAuthor: authorInfo.groupAuthor,
     yearDate: normalizeDate(date), modifiedDate: normalizeDate(modified), siteName: cleanText(siteName), publisher: cleanText(publisher),
     url: finalUrl, doi, journal: cleanText(publicationTitle), volume: cleanText(volume), issue: cleanText(issue),
     pages: cleanText(pages && lastPage ? `${pages}-${lastPage}` : pages), description: cleanText(description, 1200),
-    accessedAs: 'webpage', warnings: []
+    authorDetectionSource: authorInfo.source,
+    accessedAs: 'webpage', warnings
   };
 }
 
@@ -487,7 +569,7 @@ async function enrichDocumentWithDoi(metadata, documentUrl = '') {
   } catch { return metadata; }
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, app: 'CiteRight APA 7', version: '1.0.0' }));
+app.get('/health', (_req, res) => res.json({ ok: true, app: 'CiteRight APA 7', version: '1.1.0' }));
 app.get('/api/doi', async (req, res) => {
   try {
     const doi = String(req.query.doi || '').trim();
