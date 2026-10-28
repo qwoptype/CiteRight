@@ -1,5 +1,10 @@
 const STORAGE_KEY = 'citeright.apa7.bibliography.v1';
 const API_KEY = 'citeright.apa7.apiBase.v1';
+const THEME_KEY = 'citeright.apa7.theme.v1';
+const BACKUP_FORMAT = 'citeright.apa7.bibliography-backup';
+const BACKUP_VERSION = 1;
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+const MAX_BACKUP_SOURCES = 10000;
 const byId = id => document.getElementById(id);
 const fields = ['title','authors','sourceType','yearDate','siteName','publisher','url','doi','journal','volume','issue','pages','edition'];
 const form = byId('metadataForm');
@@ -15,6 +20,20 @@ function currentOrigin() {
 let apiBase = trimSlash(readStorage(API_KEY) || currentOrigin());
 function readStorage(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function writeStorage(key, value) { try { localStorage.setItem(key, value); } catch { /* Storage can be disabled in private browsing. */ } }
+function applyTheme(theme, persist = true) {
+  const selected = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = selected;
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = selected === 'dark' ? '#101923' : '#102a43';
+  const button = byId('themeToggleButton');
+  if (button) {
+    const dark = selected === 'dark';
+    button.textContent = dark ? '☀ Light mode' : '☾ Dark mode';
+    button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    button.setAttribute('aria-pressed', String(dark));
+  }
+  if (persist) writeStorage(THEME_KEY, selected);
+}
 function loadBibliography() {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -361,6 +380,8 @@ function renderBibliography() {
   byId('sourceCount').textContent = `${bibliography.length} ${bibliography.length === 1 ? 'source' : 'sources'}`;
   byId('exportTxtButton').disabled = !bibliography.length;
   byId('exportHtmlButton').disabled = !bibliography.length;
+  byId('exportJsonButton').disabled = !bibliography.length;
+  byId('copyAllButton').disabled = !bibliography.length;
   byId('clearBibliographyButton').disabled = !bibliography.length;
   if (!visible.length) {
     byId('bibliographyList').innerHTML = filter ? '<div class="empty-state"><strong>No matching sources.</strong><p>Try a different title, author, or website name.</p></div>' : '<div class="empty-state"><span class="empty-state-icon">↳</span><strong>Your sources will collect here.</strong><p>Add the reviewed citation above. The list stays in this browser on this device.</p></div>';
@@ -413,11 +434,117 @@ function exportText() {
   const content = sources.map(source => markupToPlain(makeReference(source))).join('\n\n');
   downloadFile('CiteRight-APA7-Bibliography.txt', `${content}\n`, 'text/plain;charset=utf-8');
 }
+function formattedReferenceParagraph(source) {
+  return `<p style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:2;margin:0;padding-left:0.5in;text-indent:-0.5in;overflow-wrap:anywhere;">${markupToHtml(makeReference(source))}</p>`;
+}
+function bibliographyRichHtml(sources) {
+  const body = sources.map(formattedReferenceParagraph).join('\n');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>APA 7 References</title><style>body{margin:1in;color:#111}</style></head><body><div style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:2;color:#111;"><p style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:2;text-align:center;font-weight:bold;margin:0;">References</p>${body}</div></body></html>`;
+}
+async function copyAllBibliography() {
+  const sources = sortedSources(bibliography);
+  if (!sources.length) return showToast('Add a source before copying the bibliography.');
+  const html = bibliographyRichHtml(sources);
+  const plain = `References\n${sources.map(source => markupToPlain(makeReference(source))).join('\n')}`;
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) throw new Error('Rich text clipboard is unavailable.');
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([plain], { type: 'text/plain' })
+    })]);
+    showToast('Bibliography copied · Times New Roman, 12 pt');
+  } catch {
+    try {
+      await navigator.clipboard.writeText(plain);
+      showToast('Copied as plain text; use Export formatted .html to preserve formatting.');
+    } catch {
+      downloadFile('CiteRight-APA7-Bibliography-formatted.html', html, 'text/html;charset=utf-8');
+      showToast('Clipboard blocked; downloaded the formatted bibliography instead.');
+    }
+  }
+}
 function exportHtml() {
   const sources = sortedSources(bibliography);
-  const body = sources.map(source => `<p>${markupToHtml(makeReference(source))}</p>`).join('\n');
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>APA 7 References</title><style>body{font:12pt/2 Arial,sans-serif;max-width:850px;margin:40px auto;color:#111}h1{font-size:16pt}p{margin:0 0 0 0;text-indent:-.5in;padding-left:.5in;overflow-wrap:anywhere}em{font-style:italic}</style></head><body><h1>References</h1>${body}</body></html>`;
+  const html = bibliographyRichHtml(sources);
   downloadFile('CiteRight-APA7-Bibliography.html', html, 'text/html;charset=utf-8');
+}
+function exportJsonBackup() {
+  const payload = {
+    format: BACKUP_FORMAT,
+    schemaVersion: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    storageKey: STORAGE_KEY,
+    sourceCount: bibliography.length,
+    sources: bibliography
+  };
+  downloadFile('CiteRight-APA7-Backup.json', `${JSON.stringify(payload, null, 2)}\n`, 'application/json;charset=utf-8');
+  showToast(`Backup downloaded · ${bibliography.length} source${bibliography.length === 1 ? '' : 's'}`);
+}
+function sourceFingerprint(source) {
+  const keys = ['title','authors','groupAuthor','sourceType','yearDate','siteName','publisher','url','doi','journal','volume','issue','pages','edition','sentenceCase'];
+  const normalized = {};
+  for (const key of keys) normalized[key] = key === 'title' ? String(source[key] || '').trim().toLocaleLowerCase() : source[key] ?? (key === 'authors' ? [] : '');
+  if (Array.isArray(normalized.authors)) normalized.authors = normalized.authors.map(author => String(author).trim().toLocaleLowerCase());
+  return JSON.stringify(normalized);
+}
+function normalizeImportedSource(raw, index) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || typeof raw.title !== 'string' || !raw.title.trim()) return null;
+  const asText = (value, max = 4000) => typeof value === 'string' || typeof value === 'number' ? String(value).slice(0, max) : '';
+  const allowedTypes = ['website','journal','book','report','video'];
+  const authors = Array.isArray(raw.authors) ? raw.authors.filter(value => typeof value === 'string').map(value => value.trim()).filter(Boolean).slice(0, 100) : (typeof raw.authors === 'string' ? raw.authors.split(/\n+/).map(value => value.trim()).filter(Boolean).slice(0, 100) : []);
+  return {
+    id: asText(raw.id, 180) || `cr-import-${Date.now()}-${index}-${Math.random().toString(36).slice(2,8)}`,
+    title: raw.title.trim().slice(0, 2000), authors,
+    groupAuthor: raw.groupAuthor === true,
+    sourceType: allowedTypes.includes(raw.sourceType) ? raw.sourceType : 'website',
+    yearDate: asText(raw.yearDate, 100), siteName: asText(raw.siteName, 500), publisher: asText(raw.publisher, 500),
+    url: asText(raw.url, 4000), doi: asText(raw.doi, 500), journal: asText(raw.journal, 1000),
+    volume: asText(raw.volume, 100), issue: asText(raw.issue, 100), pages: asText(raw.pages, 200), edition: asText(raw.edition, 100),
+    sentenceCase: raw.sentenceCase !== false
+  };
+}
+async function importJsonBackup(file) {
+  if (!file) return;
+  if (file.size > MAX_BACKUP_BYTES) {
+    byId('importJsonInput').value = '';
+    return showToast('Backup must be 5 MB or smaller.');
+  }
+  try {
+    const parsed = JSON.parse(await file.text());
+    let inputSources;
+    if (Array.isArray(parsed)) inputSources = parsed;
+    else if (parsed && typeof parsed === 'object' && parsed.format === BACKUP_FORMAT && Array.isArray(parsed.sources) && (parsed.schemaVersion === 1 || parsed.schemaVersion === undefined)) inputSources = parsed.sources;
+    else throw new Error('This file is not a recognized CiteRight JSON backup. Choose a backup created by CiteRight.');
+    if (inputSources.length > MAX_BACKUP_SOURCES) throw new Error(`A backup can contain no more than ${MAX_BACKUP_SOURCES.toLocaleString()} sources.`);
+    const imported = inputSources.map(normalizeImportedSource).filter(Boolean);
+    if (!imported.length) throw new Error('No valid citation entries with titles were found in that backup. Your existing bibliography was not changed.');
+
+    const seenFingerprints = new Set(bibliography.map(sourceFingerprint));
+    const usedIds = new Set(bibliography.map(source => String(source.id)));
+    let added = 0, duplicates = 0, idConflicts = 0;
+    for (const source of imported) {
+      const fingerprint = sourceFingerprint(source);
+      if (seenFingerprints.has(fingerprint)) { duplicates++; continue; }
+      if (usedIds.has(source.id)) {
+        idConflicts++;
+        const oldId = source.id;
+        do { source.id = `cr-import-${Date.now()}-${Math.random().toString(36).slice(2,10)}`; } while (usedIds.has(source.id));
+        if (!source.id) source.id = `${oldId}-imported`;
+      }
+      usedIds.add(source.id);
+      seenFingerprints.add(fingerprint);
+      bibliography.push(source);
+      added++;
+    }
+    saveBibliography();
+    renderBibliography();
+    byId('importJsonInput').value = '';
+    showToast(`Restore complete · ${added} added, ${duplicates} duplicate${duplicates === 1 ? '' : 's'} skipped`);
+    setStatus(`Merged ${added} source${added === 1 ? '' : 's'} from the backup. Existing sources were preserved; ${duplicates} duplicate${duplicates === 1 ? '' : 's'} skipped${idConflicts ? ` and ${idConflicts} ID conflict${idConflicts === 1 ? '' : 's'} safely assigned new IDs` : ''}.`, 'success');
+  } catch (error) {
+    byId('importJsonInput').value = '';
+    setStatus(`${error.message || 'Could not restore that backup.'} Your existing bibliography was not replaced.`, 'error');
+  }
 }
 async function testApi(target = 'apiStatus') {
   const labelMode = target === 'connectionLabel';
@@ -475,12 +602,19 @@ byId('clearButton').addEventListener('click', () => { clearForm(); setStatus('Fi
 byId('copyReferenceButton').addEventListener('click', () => { const source = collectSource(); if (!source.title) return showToast('Enter a title first'); copyRichText(makeReference(source), 'APA reference copied'); });
 byId('copyInTextButton').addEventListener('click', async () => { const source = collectSource(); if (!source.title) return showToast('Enter a title first'); try { await navigator.clipboard.writeText(markupToPlain(inTextCitation(source))); showToast('In-text citation copied'); } catch { showToast('Clipboard permission is unavailable'); } });
 byId('bibliographySearch').addEventListener('input', renderBibliography);
+byId('copyAllButton').addEventListener('click', copyAllBibliography);
+byId('exportJsonButton').addEventListener('click', exportJsonBackup);
+byId('importJsonButton').addEventListener('click', () => byId('importJsonInput').click());
+byId('importJsonInput').addEventListener('change', event => importJsonBackup(event.target.files?.[0]));
 byId('exportTxtButton').addEventListener('click', exportText);
 byId('exportHtmlButton').addEventListener('click', exportHtml);
 byId('clearBibliographyButton').addEventListener('click', () => {
   if (!confirm('Remove all saved bibliography sources from this browser? This cannot be undone.')) return;
   bibliography = []; saveBibliography(); renderBibliography(); if (editingId) clearForm(); showToast('Bibliography cleared');
 });
+byId('themeToggleButton').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+applyTheme(readStorage(THEME_KEY) || 'light', false);
+
 const settingsDialog = byId('settingsDialog');
 byId('settingsButton').addEventListener('click', () => { byId('apiBaseInput').value = apiBase; byId('apiStatus').hidden = true; settingsDialog.showModal(); });
 byId('testApiButton').addEventListener('click', () => testApi('apiStatus'));
