@@ -2,3 +2,121 @@
 @media(min-width:1250px){.workspace{grid-template-columns:minmax(340px,.82fr) minmax(490px,1.18fr)}.preview-panel{grid-column:2;grid-row:1 / span 2}.source-panel{grid-column:1;grid-row:1}.editor-panel{grid-column:1;grid-row:2}.reference-preview{padding:25px 30px}}@media(max-width:900px){.workspace{grid-template-columns:1fr}.preview-panel{grid-column:auto}.hero{margin-bottom:24px}.bibliography-heading-row{align-items:flex-start;flex-direction:column}.bibliography-actions{justify-content:flex-start;width:100%}.bibliography-actions input{flex:1;min-width:160px}.app-shell{padding-top:32px}}@media(max-width:560px){.topbar{height:66px;padding-inline:15px}.brand-mark{width:35px;height:35px}.brand-copy strong{font-size:15px}.brand-copy small{font-size:8px}.connection-label{display:none}.top-actions{gap:7px}.button{padding:9px 11px}.top-actions .button{font-size:10px}.app-shell{padding:28px 12px 18px}.hero{padding-inline:5px}h1{font-size:39px;letter-spacing:-1.8px}.hero p{font-size:12px}.panel{border-radius:12px}.source-panel,.editor-panel,.preview-panel,.bibliography-panel{padding:16px}.panel h2{font-size:18px}.input-action-row{flex-direction:column}.input-action-row .button{min-height:39px}.form-grid{gap:13px 9px}.bibliography-entry{grid-template-columns:28px minmax(0,1fr)}.entry-number{width:27px;height:27px}.entry-actions{grid-column:2;flex-direction:row;flex-wrap:wrap}.bibliography-footer,.app-footer{flex-direction:column}.bibliography-actions .button{flex:1}.dialog-header,.dialog-body{padding:18px}.dialog-buttons .button{flex:1}.reference-preview{padding:16px;font-size:12px}.preview-label-row{padding:12px}.in-text-preview{padding:14px 16px}}
 
 .document-preview{border:1px solid #e3ebf1;border-radius:9px;padding:10px 12px;margin-top:15px;background:#fbfdff}.document-preview summary{cursor:pointer;font-size:10px;font-weight:800;color:#56758c}.document-preview pre{font:10px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;color:#6c8091;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;margin:10px 0 0}
+
+/* Dark mode is a presentation-only preference; it does not touch bibliography storage. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --navy: #e5edf6;
+  --navy2: #cbd9e7;
+  --ink: #e6edf5;
+  --muted: #acbdce;
+  --soft: #1c2a39;
+  --paper: #172433;
+  --line: #33485b;
+  --mint: #b7f0da;
+  --mint-ink: #123f35;
+  --blue: #4789eb;
+  --blue-dark: #5b98f1;
+  --gold: #e5b75e;
+  --danger: #ffb0a8;
+  --shadow: 0 10px 28px rgba(0,0,0,.18);
+  background: #101923;
+}
+html[data-theme="dark"] body {
+  background: linear-gradient(180deg, #111c28 0, #101923 480px, #0e1721 100%);
+  color: var(--ink);
+}
+html[data-theme="dark"] .topbar {
+  background: rgba(17, 29, 42, .9);
+  border-bottom-color: #2c3f51;
+}
+html[data-theme="dark"] .brand-mark { background: #203a53; color: #b7f0da; }
+html[data-theme="dark"] .brand-copy small,
+html[data-theme="dark"] .connection-label,
+html[data-theme="dark"] .muted,
+html[data-theme="dark"] .field-help,
+html[data-theme="dark"] .entry-authors,
+html[data-theme="dark"] .entry-intext,
+html[data-theme="dark"] .bibliography-footer,
+html[data-theme="dark"] .app-footer { color: #a5b8ca; }
+html[data-theme="dark"] .hero-tags span { background: #1a2b3c; border-color: #33485b; color: #c1d2e2; }
+html[data-theme="dark"] .panel { background: var(--paper); border-color: var(--line); }
+html[data-theme="dark"] .input-tabs { background: #101b27; }
+html[data-theme="dark"] .input-tab { color: #a8bacb; }
+html[data-theme="dark"] .input-tab.is-active { background: #2a4055; color: #f0f5fa; box-shadow: none; }
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background: #101c29;
+  border-color: #3a5064;
+  color: #e6edf5;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #8195a8; }
+html[data-theme="dark"] .field > label,
+html[data-theme="dark"] .tab-panel > label:not(.dropzone),
+html[data-theme="dark"] .dialog-body > label { color: #cbd8e5; }
+html[data-theme="dark"] .dropzone { background: #142334; border-color: #3c5a73; color: #e4edf6; }
+html[data-theme="dark"] .dropzone:hover { background: #1a3044; border-color: #6193c9; }
+html[data-theme="dark"] .upload-symbol { background: #203d59; color: #9ec9ff; }
+html[data-theme="dark"] .selected-file,
+html[data-theme="dark"] .source-notes,
+html[data-theme="dark"] .settings-note {
+  background: #142334;
+  border-color: #2e4357;
+  color: #a9bdcf;
+}
+html[data-theme="dark"] .source-notes strong,
+html[data-theme="dark"] .settings-note strong { color: #d6e3ee; }
+html[data-theme="dark"] .status-message { background: #182e44; border-color: #2b4b6b; color: #c9e2ff; }
+html[data-theme="dark"] .status-message.error { background: #3a2227; border-color: #633a40; color: #ffd5d1; }
+html[data-theme="dark"] .status-message.success { background: #17352e; border-color: #2c5d4c; color: #bff0d8; }
+html[data-theme="dark"] .search-result { background: #142334; border-color: #33485b; }
+html[data-theme="dark"] .search-result:hover { background: #20364b; border-color: #527ba5; }
+html[data-theme="dark"] .search-result strong { color: #edf4fa; }
+html[data-theme="dark"] .search-result span { color: #adbed0; }
+html[data-theme="dark"] .draft-pill { background: #203d59; color: #c7e0ff; }
+html[data-theme="dark"] .format-stamp { background: #23405b; color: #b7f0da; }
+html[data-theme="dark"] .inline-check label,
+html[data-theme="dark"] .subtle-note { color: #a7b9ca; }
+html[data-theme="dark"] .citation-preview-wrap { background: linear-gradient(135deg, #142130 0, #172737 100%); border-color: #33495e; }
+html[data-theme="dark"] .preview-label-row { border-bottom-color: #2e4255; color: #9fb4c8; }
+html[data-theme="dark"] .reference-preview { color: #e1eaf3; }
+html[data-theme="dark"] .reference-preview.empty { color: #8fa3b7; }
+html[data-theme="dark"] .preview-divider { background: #2e4255; }
+html[data-theme="dark"] .in-text-preview { color: #c0ddff; }
+html[data-theme="dark"] .preview-footnote { color: #9cafc0; }
+html[data-theme="dark"] .count-pill { background: #24394d; color: #c2d3e2; }
+html[data-theme="dark"] .empty-state { background: #142130; border-color: #34495b; }
+html[data-theme="dark"] .empty-state-icon { background: #20374b; color: #9ebfe0; }
+html[data-theme="dark"] .empty-state strong { color: #d3e0ec; }
+html[data-theme="dark"] .empty-state p { color: #a0b3c5; }
+html[data-theme="dark"] .bibliography-entry { background: #142130; border-color: #33485b; }
+html[data-theme="dark"] .entry-number { background: #22384b; color: #bad0e3; }
+html[data-theme="dark"] .entry-type { background: #213e42; color: #b4e1db; }
+html[data-theme="dark"] .entry-reference { color: #d7e3ed; }
+html[data-theme="dark"] .entry-actions button { background: #1a2b3b; border-color: #3a5064; color: #c0d0df; }
+html[data-theme="dark"] .entry-actions button:hover { background: #294158; color: #fff; }
+html[data-theme="dark"] .entry-actions .delete-entry { color: #ffb0a8; }
+html[data-theme="dark"] .button-soft { background: #1a2b3b; color: #dce8f2; border-color: #3a5064; }
+html[data-theme="dark"] .button-soft:hover:not(:disabled) { background: #263c50; border-color: #526d85; }
+html[data-theme="dark"] .button-secondary { background: #294965; color: #fff; }
+html[data-theme="dark"] .button-danger-soft { background: #382528; border-color: #654147; color: #ffb5ad; }
+html[data-theme="dark"] .settings-dialog { background: #172433; border-color: #35495c; color: #e6edf5; }
+html[data-theme="dark"] .dialog-header { border-bottom-color: #33485b; }
+html[data-theme="dark"] .icon-close { background: #1b2c3c; border-color: #3a5064; color: #d6e2ed; }
+html[data-theme="dark"] .settings-note code,
+html[data-theme="dark"] .dialog-body code { background: #26394c; color: #d7e5f2; }
+html[data-theme="dark"] .document-preview { background: #142130; border-color: #33485b; }
+html[data-theme="dark"] .document-preview summary { color: #a9c9e8; }
+html[data-theme="dark"] .document-preview pre { color: #b3c3d2; }
+html[data-theme="dark"] .toast { background: #e5edf6; color: #172433; }
+@media (max-width: 560px) {
+  html[data-theme="dark"] .top-actions .button { font-size: 9px; padding: 8px 8px; }
+}
+
+html[data-theme="dark"] .text-button { color: #8dbbff; }
+html[data-theme="dark"] .step-label { color: #91abc2; }
+html[data-theme="dark"] .eyebrow { color: #a2b8cc; }
+html[data-theme="dark"] .heading-icon { color: #90b9e4; }
+html[data-theme="dark"] .editor-actions { border-top-color: #2e4255; }
