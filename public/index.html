@@ -18,6 +18,7 @@
     <div class="top-actions">
       <span id="connectionDot" class="connection-dot" title="API connection status"></span>
       <span id="connectionLabel" class="connection-label">Checking connection</span>
+      <button class="button button-soft" id="themeToggleButton" type="button" aria-pressed="false" title="Switch to dark mode">☾ Dark mode</button>
       <button class="button button-soft" id="settingsButton" type="button"><span class="button-icon">⚙</span> Settings</button>
     </div>
   </header>
@@ -133,10 +134,10 @@
     <section class="panel bibliography-panel" aria-labelledby="bibliographyHeading">
       <div class="bibliography-heading-row">
         <div class="panel-heading bibliography-title-block"><div><span class="step-label">YOUR WORKSPACE</span><h2 id="bibliographyHeading">Bibliography</h2></div><span id="sourceCount" class="count-pill">0 sources</span></div>
-        <div class="bibliography-actions"><input id="bibliographySearch" type="search" placeholder="Filter bibliography…" aria-label="Filter bibliography"><button id="exportTxtButton" class="button button-soft" type="button" disabled>Export .txt</button><button id="exportHtmlButton" class="button button-soft" type="button" disabled>Export formatted .html</button><button id="clearBibliographyButton" class="button button-danger-soft" type="button" disabled>Clear all</button></div>
+        <div class="bibliography-actions"><input id="bibliographySearch" type="search" placeholder="Filter bibliography…" aria-label="Filter bibliography"><button id="copyAllButton" class="button button-primary" type="button" disabled>Copy all · TNR 12 pt</button><button id="exportJsonButton" class="button button-soft" type="button" disabled>Backup JSON</button><button id="importJsonButton" class="button button-soft" type="button">Restore JSON</button><input id="importJsonInput" type="file" accept=".json,application/json" hidden aria-label="Choose a CiteRight JSON backup"><button id="exportTxtButton" class="button button-soft" type="button" disabled>Export .txt</button><button id="exportHtmlButton" class="button button-soft" type="button" disabled>Export formatted .html</button><button id="clearBibliographyButton" class="button button-danger-soft" type="button" disabled>Clear all</button></div>
       </div>
       <div id="bibliographyList" class="bibliography-list"><div class="empty-state"><span class="empty-state-icon">↳</span><strong>Your sources will collect here.</strong><p>Add the reviewed citation above. The list stays in this browser on this device.</p></div></div>
-      <div class="bibliography-footer"><span><span class="footer-dot"></span> Saved locally in this browser</span><span>Alphabetize your final reference list before submitting.</span></div>
+      <div class="bibliography-footer"><span><span class="footer-dot"></span> Saved locally in this browser</span><span>Copy all uses Times New Roman, 12 pt, double spacing, and hanging indents. JSON restore merges; it never clears existing sources.</span></div>
     </section>
 
     <footer class="app-footer"><span>© CiteRight · APA 7</span><span>Built for careful research, not guesswork.</span></footer>
